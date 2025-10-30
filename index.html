@@ -552,18 +552,109 @@
       );
     }
 
+    function ItemSelection({ project, developer, category, userPhone, onBack }) {
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        const fetchItems = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('items')
+              .select('*')
+              .eq('project_id', project.id)
+              .eq('type', category)
+              .order('name');
+
+            if (error) throw error;
+            setItems(data || []);
+          } catch (error) {
+            console.error('Error fetching items:', error);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchItems();
+      }, [project.id, category]);
+
+      const handleItemClick = async (item) => {
+        // Send to webhook
+        try {
+          await fetch('https://thomasmccone.app.n8n.cloud/webhook-test/montychat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              item: item.name,
+              item_type: item.type,
+              developer: developer.name,
+              project: project.name,
+              phone_number: userPhone,
+              timestamp: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.error('Error sending to webhook:', error);
+        }
+      };
+
+      const getCategoryTitle = () => {
+        return category === 'floor_plan' ? 'Floor Plans' : 'Sales Offers';
+      };
+
+      return (
+        <div className="auth-container">
+          <h2 className="auth-title">{project.name}</h2>
+          <p className="auth-subtitle">{getCategoryTitle()}</p>
+
+          {loading ? (
+            <div className="loading">Loading {getCategoryTitle().toLowerCase()}...</div>
+          ) : items.length === 0 ? (
+            <div style={{ width: '100%', maxWidth: '400px' }}>
+              <div className="no-results" style={{ marginBottom: '20px' }}>
+                No {getCategoryTitle().toLowerCase()} available yet
+              </div>
+              <button
+                className="auth-button"
+                style={{ background: 'linear-gradient(135deg, #999 0%, #666 100%)' }}
+                onClick={onBack}
+              >
+                ← Back to Categories
+              </button>
+            </div>
+          ) : (
+            <div style={{ width: '100%', maxWidth: '400px' }}>
+              {items.map((item) => (
+                <button
+                  key={item.id}
+                  className="auth-button"
+                  style={{ marginBottom: '10px', background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)' }}
+                  onClick={() => handleItemClick(item)}
+                >
+                  {item.name}
+                </button>
+              ))}
+              <button
+                className="auth-button"
+                style={{ marginTop: '20px', background: 'linear-gradient(135deg, #999 0%, #666 100%)' }}
+                onClick={onBack}
+              >
+                ← Back to Categories
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function ChatApp() {
       const [isAuthenticated, setIsAuthenticated] = useState(false);
       const [userPhone, setUserPhone] = useState('');
       const [selectedDeveloper, setSelectedDeveloper] = useState(null);
       const [selectedProject, setSelectedProject] = useState(null);
       const [selectedCategory, setSelectedCategory] = useState(null);
-      const [searchQuery, setSearchQuery] = useState('');
-      const [results, setResults] = useState([]);
-      const [selectedIndex, setSelectedIndex] = useState(-1);
-      const [loading, setLoading] = useState(false);
-      const [messages, setMessages] = useState([]);
-      const inputRef = useRef(null);
 
       useEffect(() => {
         // Check if phone number, developer, project, and category are already saved
@@ -589,40 +680,6 @@
           setSelectedCategory(savedCategory);
         }
       }, []);
-
-      useEffect(() => {
-        const searchItems = async () => {
-          if (searchQuery.trim().length === 0 || !selectedProject || !selectedCategory) {
-            setResults([]);
-            return;
-          }
-
-          setLoading(true);
-
-          try {
-            const { data, error} = await supabase
-              .from('items')
-              .select('*')
-              .eq('project_id', selectedProject.id)
-              .eq('type', selectedCategory)
-              .ilike('name', `%${searchQuery}%`)
-              .limit(10);
-
-            if (error) throw error;
-
-            setResults(data || []);
-            setSelectedIndex(-1);
-          } catch (error) {
-            console.error('Error searching items:', error);
-            setResults([]);
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        const debounceTimer = setTimeout(searchItems, 300);
-        return () => clearTimeout(debounceTimer);
-      }, [searchQuery, selectedProject, selectedCategory]);
 
       const handleAuthenticated = (phone) => {
         setIsAuthenticated(true);
@@ -709,9 +766,6 @@
         localStorage.removeItem('selectedDeveloper');
         localStorage.removeItem('selectedProject');
         localStorage.removeItem('selectedCategory');
-        setMessages([]);
-        setSearchQuery('');
-        setResults([]);
       };
 
       const handleBackToProjects = () => {
@@ -719,64 +773,11 @@
         setSelectedCategory(null);
         localStorage.removeItem('selectedProject');
         localStorage.removeItem('selectedCategory');
-        setMessages([]);
-        setSearchQuery('');
-        setResults([]);
       };
 
       const handleBackToCategories = () => {
         setSelectedCategory(null);
         localStorage.removeItem('selectedCategory');
-        setMessages([]);
-        setSearchQuery('');
-        setResults([]);
-      };
-
-      const handleSelect = async (item) => {
-        setMessages([...messages, {
-          type: 'user',
-          text: item.name
-        }]);
-        setSearchQuery('');
-        setResults([]);
-        setSelectedIndex(-1);
-
-        // Send to n8n webhook with phone number, developer, and project info
-        try {
-          await fetch('https://thomasmccone.app.n8n.cloud/webhook-test/montychat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              item: item.name,
-              item_type: item.type,
-              developer: selectedDeveloper.name,
-              project: selectedProject.name,
-              phone_number: userPhone,
-              timestamp: new Date().toISOString()
-            })
-          });
-        } catch (error) {
-          console.error('Error sending to webhook:', error);
-        }
-      };
-
-      const handleKeyDown = (e) => {
-        if (results.length === 0) return;
-
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          setSelectedIndex(prev =>
-            prev < results.length - 1 ? prev + 1 : prev
-          );
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
-        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-          e.preventDefault();
-          handleSelect(results[selectedIndex]);
-        }
       };
 
       if (!isAuthenticated) {
@@ -837,60 +838,15 @@
       return (
         <div className="chat-container">
           <div className="chat-header">
-            <button className="back-button" onClick={handleBackToCategories}>
-              ←
-            </button>
-            {selectedProject.name} - {selectedCategory === 'floor_plan' ? 'Floor Plans' : 'Sales Offers'}
+            Monty Chat - Developer Lookup
           </div>
-
-          <div className="chat-body">
-            {messages.length === 0 && (
-              <div className="message system">
-                Start typing to search {selectedCategory === 'floor_plan' ? 'floor plans' : 'sales offers'}...
-              </div>
-            )}
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`message ${msg.type}`}>
-                {msg.text}
-              </div>
-            ))}
-          </div>
-
-          <div className="search-container">
-            {results.length > 0 && (
-              <div className="dropdown">
-                {results.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    className={`dropdown-item ${idx === selectedIndex ? 'active' : ''}`}
-                    onClick={() => handleSelect(item)}
-                  >
-                    {item.name}
-                  </div>
-                ))}
-              </div>
-            )}
-            {loading && results.length === 0 && searchQuery && (
-              <div className="dropdown">
-                <div className="loading">Searching...</div>
-              </div>
-            )}
-            {!loading && results.length === 0 && searchQuery.length > 0 && (
-              <div className="dropdown">
-                <div className="no-results">No items found</div>
-              </div>
-            )}
-
-            <input
-              ref={inputRef}
-              type="text"
-              className="search-input"
-              placeholder="Type to search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
+          <ItemSelection
+            project={selectedProject}
+            developer={selectedDeveloper}
+            category={selectedCategory}
+            userPhone={userPhone}
+            onBack={handleBackToCategories}
+          />
         </div>
       );
     }
