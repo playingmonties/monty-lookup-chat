@@ -427,7 +427,7 @@
       );
     }
 
-    function ProjectSelection({ developer, onProjectSelected, onBack }) {
+    function ProjectSelection({ developer, onProjectSelected, onCompanyProfile, onBack }) {
       const [projects, setProjects] = useState([]);
       const [loading, setLoading] = useState(true);
 
@@ -438,6 +438,7 @@
               .from('projects')
               .select('*')
               .eq('developer_id', developer.id)
+              .neq('name', 'Company Information')
               .order('name');
 
             if (error) throw error;
@@ -455,7 +456,7 @@
       return (
         <div className="auth-container">
           <h2 className="auth-title">{developer.name}</h2>
-          <p className="auth-subtitle">Select a project</p>
+          <p className="auth-subtitle">Select a project or view company profile</p>
 
           {loading ? (
             <div className="loading">Loading projects...</div>
@@ -473,7 +474,14 @@
               ))}
               <button
                 className="auth-button"
-                style={{ marginTop: '20px', background: 'linear-gradient(135deg, #999 0%, #666 100%)' }}
+                style={{ marginTop: '20px', marginBottom: '10px', background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)' }}
+                onClick={onCompanyProfile}
+              >
+                Company Profile
+              </button>
+              <button
+                className="auth-button"
+                style={{ background: 'linear-gradient(135deg, #999 0%, #666 100%)' }}
                 onClick={onBack}
               >
                 ← Back to Developers
@@ -485,34 +493,11 @@
     }
 
     function ItemCategorySelection({ project, developer, onCategorySelected, onDirectAction, onBack }) {
-      const [categories, setCategories] = useState([]);
-      const [loading, setLoading] = useState(true);
-
-      useEffect(() => {
-        const fetchCategories = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('items')
-              .select('type')
-              .eq('project_id', project.id);
-
-            if (error) throw error;
-
-            // Get unique types
-            const uniqueTypes = [...new Set(data.map(item => item.type))];
-            setCategories(uniqueTypes);
-          } catch (error) {
-            console.error('Error fetching categories:', error);
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        fetchCategories();
-      }, [project.id]);
+      // Always show these 4 categories for every project
+      const categories = ['brochure', 'availability', 'floor_plan', 'sales_offer'];
 
       const handleCategoryClick = (category) => {
-        if (category === 'brochure' || category === 'availability' || category === 'company_profile') {
+        if (category === 'brochure' || category === 'availability') {
           // Direct action - send to webhook immediately
           onDirectAction(category);
         } else {
@@ -526,8 +511,7 @@
           'brochure': 'Brochure',
           'availability': 'Availability',
           'floor_plan': 'Floor Plans',
-          'sales_offer': 'Sales Offers',
-          'company_profile': 'Company Profile'
+          'sales_offer': 'Sales Offers'
         };
         return labels[type] || type;
       };
@@ -537,29 +521,25 @@
           <h2 className="auth-title">{project.name}</h2>
           <p className="auth-subtitle">Select an option</p>
 
-          {loading ? (
-            <div className="loading">Loading options...</div>
-          ) : (
-            <div style={{ width: '100%', maxWidth: '400px' }}>
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  className="auth-button"
-                  style={{ marginBottom: '10px' }}
-                  onClick={() => handleCategoryClick(category)}
-                >
-                  {getCategoryLabel(category)}
-                </button>
-              ))}
+          <div style={{ width: '100%', maxWidth: '400px' }}>
+            {categories.map((category) => (
               <button
+                key={category}
                 className="auth-button"
-                style={{ marginTop: '20px', background: 'linear-gradient(135deg, #999 0%, #666 100%)' }}
-                onClick={onBack}
+                style={{ marginBottom: '10px' }}
+                onClick={() => handleCategoryClick(category)}
               >
-                ← Back to Projects
+                {getCategoryLabel(category)}
               </button>
-            </div>
-          )}
+            ))}
+            <button
+              className="auth-button"
+              style={{ marginTop: '20px', background: 'linear-gradient(135deg, #999 0%, #666 100%)' }}
+              onClick={onBack}
+            >
+              ← Back to Projects
+            </button>
+          </div>
         </div>
       );
     }
@@ -657,11 +637,10 @@
       };
 
       const handleDirectAction = async (category) => {
-        // Send directly to webhook for brochure, availability, or company_profile
+        // Send directly to webhook for brochure or availability
         const categoryLabels = {
           'brochure': 'Brochure',
-          'availability': 'Availability',
-          'company_profile': 'Company Profile'
+          'availability': 'Availability'
         };
 
         const itemName = `${selectedProject.name} - ${categoryLabels[category]}`;
@@ -682,6 +661,30 @@
               item_type: category,
               developer: selectedDeveloper.name,
               project: selectedProject.name,
+              phone_number: userPhone,
+              timestamp: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.error('Error sending to webhook:', error);
+        }
+      };
+
+      const handleCompanyProfile = async () => {
+        // Send company profile request to webhook
+        const itemName = `${selectedDeveloper.name} - Company Profile`;
+
+        try {
+          await fetch('https://thomasmccone.app.n8n.cloud/webhook-test/montychat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              item: itemName,
+              item_type: 'company_profile',
+              developer: selectedDeveloper.name,
+              project: null,
               phone_number: userPhone,
               timestamp: new Date().toISOString()
             })
@@ -799,6 +802,7 @@
             <ProjectSelection
               developer={selectedDeveloper}
               onProjectSelected={handleProjectSelected}
+              onCompanyProfile={handleCompanyProfile}
               onBack={handleBackToDevelopers}
             />
           </div>
