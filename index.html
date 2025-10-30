@@ -484,11 +484,92 @@
       );
     }
 
+    function ItemCategorySelection({ project, developer, onCategorySelected, onDirectAction, onBack }) {
+      const [categories, setCategories] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        const fetchCategories = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('items')
+              .select('type')
+              .eq('project_id', project.id);
+
+            if (error) throw error;
+
+            // Get unique types
+            const uniqueTypes = [...new Set(data.map(item => item.type))];
+            setCategories(uniqueTypes);
+          } catch (error) {
+            console.error('Error fetching categories:', error);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchCategories();
+      }, [project.id]);
+
+      const handleCategoryClick = (category) => {
+        if (category === 'brochure' || category === 'availability' || category === 'company_profile') {
+          // Direct action - send to webhook immediately
+          onDirectAction(category);
+        } else {
+          // Go to search level for floor_plan or sales_offer
+          onCategorySelected(category);
+        }
+      };
+
+      const getCategoryLabel = (type) => {
+        const labels = {
+          'brochure': 'Brochure',
+          'availability': 'Availability',
+          'floor_plan': 'Floor Plans',
+          'sales_offer': 'Sales Offers',
+          'company_profile': 'Company Profile'
+        };
+        return labels[type] || type;
+      };
+
+      return (
+        <div className="auth-container">
+          <h2 className="auth-title">{project.name}</h2>
+          <p className="auth-subtitle">Select an option</p>
+
+          {loading ? (
+            <div className="loading">Loading options...</div>
+          ) : (
+            <div style={{ width: '100%', maxWidth: '400px' }}>
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  className="auth-button"
+                  style={{ marginBottom: '10px' }}
+                  onClick={() => handleCategoryClick(category)}
+                >
+                  {getCategoryLabel(category)}
+                </button>
+              ))}
+              <button
+                className="auth-button"
+                style={{ marginTop: '20px', background: 'linear-gradient(135deg, #999 0%, #666 100%)' }}
+                onClick={onBack}
+              >
+                ← Back to Projects
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function ChatApp() {
       const [isAuthenticated, setIsAuthenticated] = useState(false);
       const [userPhone, setUserPhone] = useState('');
       const [selectedDeveloper, setSelectedDeveloper] = useState(null);
       const [selectedProject, setSelectedProject] = useState(null);
+      const [selectedCategory, setSelectedCategory] = useState(null);
       const [searchQuery, setSearchQuery] = useState('');
       const [results, setResults] = useState([]);
       const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -497,10 +578,11 @@
       const inputRef = useRef(null);
 
       useEffect(() => {
-        // Check if phone number, developer, and project are already saved
+        // Check if phone number, developer, project, and category are already saved
         const savedPhone = localStorage.getItem('userPhoneNumber');
         const savedDeveloper = localStorage.getItem('selectedDeveloper');
         const savedProject = localStorage.getItem('selectedProject');
+        const savedCategory = localStorage.getItem('selectedCategory');
 
         if (savedPhone) {
           setIsAuthenticated(true);
@@ -514,11 +596,15 @@
         if (savedProject) {
           setSelectedProject(JSON.parse(savedProject));
         }
+
+        if (savedCategory) {
+          setSelectedCategory(savedCategory);
+        }
       }, []);
 
       useEffect(() => {
         const searchItems = async () => {
-          if (searchQuery.trim().length === 0 || !selectedProject) {
+          if (searchQuery.trim().length === 0 || !selectedProject || !selectedCategory) {
             setResults([]);
             return;
           }
@@ -526,10 +612,11 @@
           setLoading(true);
 
           try {
-            const { data, error } = await supabase
+            const { data, error} = await supabase
               .from('items')
               .select('*')
               .eq('project_id', selectedProject.id)
+              .eq('type', selectedCategory)
               .ilike('name', `%${searchQuery}%`)
               .limit(10);
 
@@ -547,7 +634,7 @@
 
         const debounceTimer = setTimeout(searchItems, 300);
         return () => clearTimeout(debounceTimer);
-      }, [searchQuery, selectedProject]);
+      }, [searchQuery, selectedProject, selectedCategory]);
 
       const handleAuthenticated = (phone) => {
         setIsAuthenticated(true);
@@ -564,11 +651,53 @@
         localStorage.setItem('selectedProject', JSON.stringify(project));
       };
 
+      const handleCategorySelected = (category) => {
+        setSelectedCategory(category);
+        localStorage.setItem('selectedCategory', category);
+      };
+
+      const handleDirectAction = async (category) => {
+        // Send directly to webhook for brochure, availability, or company_profile
+        const categoryLabels = {
+          'brochure': 'Brochure',
+          'availability': 'Availability',
+          'company_profile': 'Company Profile'
+        };
+
+        const itemName = `${selectedProject.name} - ${categoryLabels[category]}`;
+
+        setMessages([...messages, {
+          type: 'user',
+          text: itemName
+        }]);
+
+        try {
+          await fetch('https://thomasmccone.app.n8n.cloud/webhook-test/montychat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              item: itemName,
+              item_type: category,
+              developer: selectedDeveloper.name,
+              project: selectedProject.name,
+              phone_number: userPhone,
+              timestamp: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.error('Error sending to webhook:', error);
+        }
+      };
+
       const handleBackToDevelopers = () => {
         setSelectedDeveloper(null);
         setSelectedProject(null);
+        setSelectedCategory(null);
         localStorage.removeItem('selectedDeveloper');
         localStorage.removeItem('selectedProject');
+        localStorage.removeItem('selectedCategory');
         setMessages([]);
         setSearchQuery('');
         setResults([]);
@@ -576,7 +705,17 @@
 
       const handleBackToProjects = () => {
         setSelectedProject(null);
+        setSelectedCategory(null);
         localStorage.removeItem('selectedProject');
+        localStorage.removeItem('selectedCategory');
+        setMessages([]);
+        setSearchQuery('');
+        setResults([]);
+      };
+
+      const handleBackToCategories = () => {
+        setSelectedCategory(null);
+        localStorage.removeItem('selectedCategory');
         setMessages([]);
         setSearchQuery('');
         setResults([]);
@@ -666,19 +805,36 @@
         );
       }
 
+      if (!selectedCategory) {
+        return (
+          <div className="chat-container">
+            <div className="chat-header">
+              Monty Chat - Developer Lookup
+            </div>
+            <ItemCategorySelection
+              project={selectedProject}
+              developer={selectedDeveloper}
+              onCategorySelected={handleCategorySelected}
+              onDirectAction={handleDirectAction}
+              onBack={handleBackToProjects}
+            />
+          </div>
+        );
+      }
+
       return (
         <div className="chat-container">
           <div className="chat-header">
-            <button className="back-button" onClick={handleBackToProjects}>
+            <button className="back-button" onClick={handleBackToCategories}>
               ←
             </button>
-            {selectedProject.name}
+            {selectedProject.name} - {selectedCategory === 'floor_plan' ? 'Floor Plans' : 'Sales Offers'}
           </div>
 
           <div className="chat-body">
             {messages.length === 0 && (
               <div className="message system">
-                Start typing to search {selectedProject.name} items...
+                Start typing to search {selectedCategory === 'floor_plan' ? 'floor plans' : 'sales offers'}...
               </div>
             )}
             {messages.map((msg, idx) => (
