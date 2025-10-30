@@ -516,6 +516,14 @@
         return labels[type] || type;
       };
 
+      const getButtonStyle = (category) => {
+        // Green for direct actions (stay on page), Purple for navigation (go deeper)
+        if (category === 'brochure' || category === 'availability') {
+          return { marginBottom: '10px', background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)' };
+        }
+        return { marginBottom: '10px' }; // Purple (default auth-button style)
+      };
+
       return (
         <div className="auth-container">
           <h2 className="auth-title">{project.name}</h2>
@@ -526,7 +534,7 @@
               <button
                 key={category}
                 className="auth-button"
-                style={{ marginBottom: '10px' }}
+                style={getButtonStyle(category)}
                 onClick={() => handleCategoryClick(category)}
               >
                 {getCategoryLabel(category)}
