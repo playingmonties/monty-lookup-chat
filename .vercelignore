@@ -1,0 +1,10 @@
+peace_lagoons_2_floors_plans_a
+peace_lagoons_2_floors_plans_b
+.venv
+.idea
+.claude
+.DS_Store
+index-old.html
+*.pyc
+__pycache__
+README.md

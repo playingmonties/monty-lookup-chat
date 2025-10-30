@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Monty Chat">
+  <meta name="theme-color" content="#667eea">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <title>Monty Chat - Developer Lookup</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    #root {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .chat-container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 0;
+      }
+
+      #root {
+        max-width: 100%;
+      }
+
+      .chat-container {
+        border-radius: 0;
+        height: 100vh;
+        height: 100dvh;
+      }
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      font-size: 20px;
+      font-weight: 600;
+      text-align: center;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .back-button {
+      position: absolute;
+      left: 15px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+
+    .chat-body {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow-y: auto;
+    }
+
+    .auth-container {
+      flex: 1;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      overflow-y: auto;
+    }
+
+    .auth-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .auth-subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .phone-input-group {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 20px;
+    }
+
+    .phone-input {
+      width: 100%;
+      padding: 15px 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .phone-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .otp-input-group {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .otp-digit {
+      width: 50px;
+      height: 60px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 24px;
+      text-align: center;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .otp-digit:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .auth-button {
+      width: 100%;
+      max-width: 400px;
+      padding: 15px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .auth-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .auth-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .error-message {
+      color: #e74c3c;
+      font-size: 14px;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .search-container {
+      position: relative;
+      padding: 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 15px 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 25px;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .dropdown {
+      position: absolute;
+      bottom: 100%;
+      left: 20px;
+      right: 20px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.15);
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+      z-index: 10;
+    }
+
+    .dropdown-item {
+      padding: 15px 20px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: #f8f9fa;
+    }
+
+    .dropdown-item.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .message {
+      padding: 12px 18px;
+      border-radius: 18px;
+      margin-bottom: 8px;
+      max-width: 80%;
+      word-wrap: break-word;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.user {
+      background: #667eea;
+      color: white;
+      align-self: flex-end;
+      margin-left: auto;
+    }
+
+    .message.system {
+      background: #f0f0f0;
+      color: #333;
+      align-self: flex-start;
+    }
+
+    .loading {
+      text-align: center;
+      color: #999;
+      padding: 10px;
+      font-style: italic;
+    }
+
+    .no-results {
+      text-align: center;
+      color: #999;
+      padding: 20px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Initialize Supabase client
+    const supabase = supabase.createClient(
+      'https://jfimvpvwpyrttiitvdbr.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmaW12cHZ3cHlydHRpaXR2ZGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NzY5ODYsImV4cCI6MjA3NzE1Mjk4Nn0.Mj3KUUTerNdUARXX5kSO-MhJi0pn_uvrHL-6_1opEtM'
+    );
+
+    function PhoneAuth({ onAuthenticated }) {
+      const [phoneNumber, setPhoneNumber] = useState('');
+      const [error, setError] = useState('');
+
+      const handleSubmit = () => {
+        setError('');
+
+        // Basic validation
+        if (!phoneNumber || phoneNumber.length < 10) {
+          setError('Please enter a valid phone number');
+          return;
+        }
+
+        // Save to localStorage and authenticate
+        localStorage.setItem('userPhoneNumber', phoneNumber);
+        onAuthenticated(phoneNumber);
+      };
+
+      const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+          handleSubmit();
+        }
+      };
+
+      return (
+        <div className="auth-container">
+          <h2 className="auth-title">Welcome to Monty Chat</h2>
+          <p className="auth-subtitle">Enter your phone number to get started</p>
+
+          <div className="phone-input-group">
+            <input
+              type="tel"
+              className="phone-input"
+              placeholder="+971 50 123 4567"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              onKeyPress={handleKeyPress}
+            />
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <button
+            className="auth-button"
+            onClick={handleSubmit}
+            disabled={!phoneNumber}
+          >
+            Continue
+          </button>
+        </div>
+      );
+    }
+
+    function DeveloperSelection({ onDeveloperSelected }) {
+      const [developers, setDevelopers] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        const fetchDevelopers = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('developers_new')
+              .select('*')
+              .order('name');
+
+            if (error) throw error;
+            setDevelopers(data || []);
+          } catch (error) {
+            console.error('Error fetching developers:', error);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchDevelopers();
+      }, []);
+
+      return (
+        <div className="auth-container">
+          <h2 className="auth-title">Select Developer</h2>
+          <p className="auth-subtitle">Choose the developer to work with</p>
+
+          {loading ? (
+            <div className="loading">Loading developers...</div>
+          ) : (
+            <div style={{ width: '100%', maxWidth: '400px' }}>
+              {developers.map((dev) => (
+                <button
+                  key={dev.id}
+                  className="auth-button"
+                  style={{ marginBottom: '10px' }}
+                  onClick={() => onDeveloperSelected(dev)}
+                >
+                  {dev.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function ProjectSelection({ developer, onProjectSelected, onBack }) {
+      const [projects, setProjects] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        const fetchProjects = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('projects')
+              .select('*')
+              .eq('developer_id', developer.id)
+              .order('name');
+
+            if (error) throw error;
+            setProjects(data || []);
+          } catch (error) {
+            console.error('Error fetching projects:', error);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchProjects();
+      }, [developer.id]);
+
+      return (
+        <div className="auth-container">
+          <h2 className="auth-title">{developer.name}</h2>
+          <p className="auth-subtitle">Select a project</p>
+
+          {loading ? (
+            <div className="loading">Loading projects...</div>
+          ) : (
+            <div style={{ width: '100%', maxWidth: '400px' }}>
+              {projects.map((project) => (
+                <button
+                  key={project.id}
+                  className="auth-button"
+                  style={{ marginBottom: '10px' }}
+                  onClick={() => onProjectSelected(project)}
+                >
+                  {project.name}
+                </button>
+              ))}
+              <button
+                className="auth-button"
+                style={{ marginTop: '20px', background: 'linear-gradient(135deg, #999 0%, #666 100%)' }}
+                onClick={onBack}
+              >
+                ← Back to Developers
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function ChatApp() {
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
+      const [userPhone, setUserPhone] = useState('');
+      const [selectedDeveloper, setSelectedDeveloper] = useState(null);
+      const [selectedProject, setSelectedProject] = useState(null);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [results, setResults] = useState([]);
+      const [selectedIndex, setSelectedIndex] = useState(-1);
+      const [loading, setLoading] = useState(false);
+      const [messages, setMessages] = useState([]);
+      const inputRef = useRef(null);
+
+      useEffect(() => {
+        // Check if phone number, developer, and project are already saved
+        const savedPhone = localStorage.getItem('userPhoneNumber');
+        const savedDeveloper = localStorage.getItem('selectedDeveloper');
+        const savedProject = localStorage.getItem('selectedProject');
+
+        if (savedPhone) {
+          setIsAuthenticated(true);
+          setUserPhone(savedPhone);
+        }
+
+        if (savedDeveloper) {
+          setSelectedDeveloper(JSON.parse(savedDeveloper));
+        }
+
+        if (savedProject) {
+          setSelectedProject(JSON.parse(savedProject));
+        }
+      }, []);
+
+      useEffect(() => {
+        const searchItems = async () => {
+          if (searchQuery.trim().length === 0 || !selectedProject) {
+            setResults([]);
+            return;
+          }
+
+          setLoading(true);
+
+          try {
+            const { data, error } = await supabase
+              .from('items')
+              .select('*')
+              .eq('project_id', selectedProject.id)
+              .ilike('name', `%${searchQuery}%`)
+              .limit(10);
+
+            if (error) throw error;
+
+            setResults(data || []);
+            setSelectedIndex(-1);
+          } catch (error) {
+            console.error('Error searching items:', error);
+            setResults([]);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        const debounceTimer = setTimeout(searchItems, 300);
+        return () => clearTimeout(debounceTimer);
+      }, [searchQuery, selectedProject]);
+
+      const handleAuthenticated = (phone) => {
+        setIsAuthenticated(true);
+        setUserPhone(phone);
+      };
+
+      const handleDeveloperSelected = (developer) => {
+        setSelectedDeveloper(developer);
+        localStorage.setItem('selectedDeveloper', JSON.stringify(developer));
+      };
+
+      const handleProjectSelected = (project) => {
+        setSelectedProject(project);
+        localStorage.setItem('selectedProject', JSON.stringify(project));
+      };
+
+      const handleBackToDevelopers = () => {
+        setSelectedDeveloper(null);
+        setSelectedProject(null);
+        localStorage.removeItem('selectedDeveloper');
+        localStorage.removeItem('selectedProject');
+        setMessages([]);
+        setSearchQuery('');
+        setResults([]);
+      };
+
+      const handleBackToProjects = () => {
+        setSelectedProject(null);
+        localStorage.removeItem('selectedProject');
+        setMessages([]);
+        setSearchQuery('');
+        setResults([]);
+      };
+
+      const handleSelect = async (item) => {
+        setMessages([...messages, {
+          type: 'user',
+          text: item.name
+        }]);
+        setSearchQuery('');
+        setResults([]);
+        setSelectedIndex(-1);
+
+        // Send to n8n webhook with phone number, developer, and project info
+        try {
+          await fetch('https://thomasmccone.app.n8n.cloud/webhook-test/montychat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              item: item.name,
+              item_type: item.type,
+              developer: selectedDeveloper.name,
+              project: selectedProject.name,
+              phone_number: userPhone,
+              timestamp: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.error('Error sending to webhook:', error);
+        }
+      };
+
+      const handleKeyDown = (e) => {
+        if (results.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedIndex(prev =>
+            prev < results.length - 1 ? prev + 1 : prev
+          );
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+          e.preventDefault();
+          handleSelect(results[selectedIndex]);
+        }
+      };
+
+      if (!isAuthenticated) {
+        return (
+          <div className="chat-container">
+            <div className="chat-header">
+              Monty Chat - Developer Lookup
+            </div>
+            <PhoneAuth onAuthenticated={handleAuthenticated} />
+          </div>
+        );
+      }
+
+      if (!selectedDeveloper) {
+        return (
+          <div className="chat-container">
+            <div className="chat-header">
+              Monty Chat - Developer Lookup
+            </div>
+            <DeveloperSelection onDeveloperSelected={handleDeveloperSelected} />
+          </div>
+        );
+      }
+
+      if (!selectedProject) {
+        return (
+          <div className="chat-container">
+            <div className="chat-header">
+              Monty Chat - Developer Lookup
+            </div>
+            <ProjectSelection
+              developer={selectedDeveloper}
+              onProjectSelected={handleProjectSelected}
+              onBack={handleBackToDevelopers}
+            />
+          </div>
+        );
+      }
+
+      return (
+        <div className="chat-container">
+          <div className="chat-header">
+            <button className="back-button" onClick={handleBackToProjects}>
+              ←
+            </button>
+            {selectedProject.name}
+          </div>
+
+          <div className="chat-body">
+            {messages.length === 0 && (
+              <div className="message system">
+                Start typing to search {selectedProject.name} items...
+              </div>
+            )}
+            {messages.map((msg, idx) => (
+              <div key={idx} className={`message ${msg.type}`}>
+                {msg.text}
+              </div>
+            ))}
+          </div>
+
+          <div className="search-container">
+            {results.length > 0 && (
+              <div className="dropdown">
+                {results.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className={`dropdown-item ${idx === selectedIndex ? 'active' : ''}`}
+                    onClick={() => handleSelect(item)}
+                  >
+                    {item.name}
+                  </div>
+                ))}
+              </div>
+            )}
+            {loading && results.length === 0 && searchQuery && (
+              <div className="dropdown">
+                <div className="loading">Searching...</div>
+              </div>
+            )}
+            {!loading && results.length === 0 && searchQuery.length > 0 && (
+              <div className="dropdown">
+                <div className="no-results">No items found</div>
+              </div>
+            )}
+
+            <input
+              ref={inputRef}
+              type="text"
+              className="search-input"
+              placeholder="Type to search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<ChatApp />, document.getElementById('root'));
+
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.log('Service Worker registration failed:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>

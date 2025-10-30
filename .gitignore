@@ -1,0 +1,10 @@
+.vercel
+.DS_Store
+.idea
+.venv
+__pycache__
+*.pyc
+peace_lagoons_2_floors_plans_a/
+peace_lagoons_2_floors_plans_b/
+*.log
+node_modules/

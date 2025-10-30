@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Monty Chat">
+  <meta name="theme-color" content="#667eea">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <title>Monty Chat - Developer Lookup</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    #root {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .chat-container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 0;
+      }
+
+      #root {
+        max-width: 100%;
+      }
+
+      .chat-container {
+        border-radius: 0;
+        height: 100vh;
+        height: 100dvh;
+      }
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      font-size: 20px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .chat-body {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow-y: auto;
+    }
+
+    .search-container {
+      position: relative;
+      padding: 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 15px 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 25px;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .dropdown {
+      position: absolute;
+      bottom: 100%;
+      left: 20px;
+      right: 20px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.15);
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+      z-index: 10;
+    }
+
+    .dropdown-item {
+      padding: 15px 20px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: #f8f9fa;
+    }
+
+    .dropdown-item.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .message {
+      padding: 12px 18px;
+      border-radius: 18px;
+      margin-bottom: 8px;
+      max-width: 80%;
+      word-wrap: break-word;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.user {
+      background: #667eea;
+      color: white;
+      align-self: flex-end;
+      margin-left: auto;
+    }
+
+    .message.system {
+      background: #f0f0f0;
+      color: #333;
+      align-self: flex-start;
+    }
+
+    .loading {
+      text-align: center;
+      color: #999;
+      padding: 10px;
+      font-style: italic;
+    }
+
+    .no-results {
+      text-align: center;
+      color: #999;
+      padding: 20px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Initialize Supabase client
+    const supabase = supabase.createClient(
+      'https://jfimvpvwpyrttiitvdbr.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmaW12cHZ3cHlydHRpaXR2ZGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NzY5ODYsImV4cCI6MjA3NzE1Mjk4Nn0.Mj3KUUTerNdUARXX5kSO-MhJi0pn_uvrHL-6_1opEtM'
+    );
+
+    function ChatApp() {
+      const [searchQuery, setSearchQuery] = useState('');
+      const [results, setResults] = useState([]);
+      const [selectedIndex, setSelectedIndex] = useState(-1);
+      const [loading, setLoading] = useState(false);
+      const [messages, setMessages] = useState([]);
+      const [phoneNumber, setPhoneNumber] = useState('');
+      const [showSetup, setShowSetup] = useState(true);
+      const inputRef = useRef(null);
+
+      useEffect(() => {
+        // Check if phone number is already saved
+        const savedPhone = localStorage.getItem('userPhoneNumber');
+        if (savedPhone) {
+          setPhoneNumber(savedPhone);
+          setShowSetup(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        const searchDevelopers = async () => {
+          if (searchQuery.trim().length === 0) {
+            setResults([]);
+            return;
+          }
+
+          setLoading(true);
+
+          try {
+            const { data, error } = await supabase
+              .from('developers')
+              .select('*')
+              .ilike('developer', `%${searchQuery}%`)
+              .limit(10);
+
+            if (error) throw error;
+
+            setResults(data || []);
+            setSelectedIndex(-1);
+          } catch (error) {
+            console.error('Error searching developers:', error);
+            setResults([]);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        const debounceTimer = setTimeout(searchDevelopers, 300);
+        return () => clearTimeout(debounceTimer);
+      }, [searchQuery]);
+
+      const handleSelect = async (developer) => {
+        setMessages([...messages, {
+          type: 'user',
+          text: developer.developer
+        }]);
+        setSearchQuery('');
+        setResults([]);
+        setSelectedIndex(-1);
+
+        // Send to n8n webhook
+        try {
+          await fetch('https://thomasmccone.app.n8n.cloud/webhook-test/montychat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              developer: developer.developer,
+              timestamp: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.error('Error sending to webhook:', error);
+        }
+      };
+
+      const handleKeyDown = (e) => {
+        if (results.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedIndex(prev =>
+            prev < results.length - 1 ? prev + 1 : prev
+          );
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+          e.preventDefault();
+          handleSelect(results[selectedIndex]);
+        }
+      };
+
+      return (
+        <div className="chat-container">
+          <div className="chat-header">
+            Monty Chat - Developer Lookup
+          </div>
+
+          <div className="chat-body">
+            {messages.length === 0 && (
+              <div className="message system">
+                Start typing to search for Dubai real estate developers...
+              </div>
+            )}
+            {messages.map((msg, idx) => (
+              <div key={idx} className={`message ${msg.type}`}>
+                {msg.text}
+              </div>
+            ))}
+          </div>
+
+          <div className="search-container">
+            {results.length > 0 && (
+              <div className="dropdown">
+                {results.map((developer, idx) => (
+                  <div
+                    key={developer.id}
+                    className={`dropdown-item ${idx === selectedIndex ? 'active' : ''}`}
+                    onClick={() => handleSelect(developer)}
+                  >
+                    {developer.developer}
+                  </div>
+                ))}
+              </div>
+            )}
+            {loading && results.length === 0 && searchQuery && (
+              <div className="dropdown">
+                <div className="loading">Searching...</div>
+              </div>
+            )}
+            {!loading && results.length === 0 && searchQuery.length > 0 && (
+              <div className="dropdown">
+                <div className="no-results">No developers found</div>
+              </div>
+            )}
+
+            <input
+              ref={inputRef}
+              type="text"
+              className="search-input"
+              placeholder="Type developer name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<ChatApp />, document.getElementById('root'));
+
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.log('Service Worker registration failed:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
