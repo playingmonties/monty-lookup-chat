@@ -493,11 +493,11 @@
     }
 
     function ItemCategorySelection({ project, developer, onCategorySelected, onDirectAction, onBack }) {
-      // Always show these 4 categories for every project
-      const categories = ['brochure', 'availability', 'floor_plan', 'sales_offer'];
+      // Always show these 5 categories for every project
+      const categories = ['brochure', 'availability', 'financial_fact_sheet', 'floor_plan', 'sales_offer'];
 
       const handleCategoryClick = (category) => {
-        if (category === 'brochure' || category === 'availability') {
+        if (category === 'brochure' || category === 'availability' || category === 'financial_fact_sheet') {
           // Direct action - send to webhook immediately
           onDirectAction(category);
         } else {
@@ -510,6 +510,7 @@
         const labels = {
           'brochure': 'Brochure',
           'availability': 'Availability',
+          'financial_fact_sheet': 'Financial Fact Sheet',
           'floor_plan': 'Floor Plans',
           'sales_offer': 'Sales Offers'
         };
@@ -518,7 +519,7 @@
 
       const getButtonStyle = (category) => {
         // Green for direct actions (stay on page), Purple for navigation (go deeper)
-        if (category === 'brochure' || category === 'availability') {
+        if (category === 'brochure' || category === 'availability' || category === 'financial_fact_sheet') {
           return { marginBottom: '10px', background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)' };
         }
         return { marginBottom: '10px' }; // Purple (default auth-button style)
@@ -645,10 +646,11 @@
       };
 
       const handleDirectAction = async (category) => {
-        // Send directly to webhook for brochure or availability
+        // Send directly to webhook for brochure, availability, or financial fact sheet
         const categoryLabels = {
           'brochure': 'Brochure',
-          'availability': 'Availability'
+          'availability': 'Availability',
+          'financial_fact_sheet': 'Financial Fact Sheet'
         };
 
         const itemName = `${selectedProject.name} - ${categoryLabels[category]}`;
