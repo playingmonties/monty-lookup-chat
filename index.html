@@ -483,7 +483,7 @@
               ))}
               <button
                 className="auth-button"
-                style={{ marginTop: '24px', marginBottom: '12px', background: '#6B8E6F' }}
+                style={{ marginTop: '24px', marginBottom: '12px', background: 'white', border: '2px solid #6B8E6F', color: '#6B8E6F' }}
                 onClick={onCompanyProfile}
               >
                 Company Profile
@@ -527,11 +527,11 @@
       };
 
       const getButtonStyle = (category) => {
-        // Green for direct actions (stay on page), Sage green for navigation (go deeper)
+        // Outlined for direct actions (stay on page), Filled for navigation (go deeper)
         if (category === 'brochure' || category === 'availability' || category === 'financial_fact_sheet') {
-          return { marginBottom: '12px', background: '#6B8E6F' };
+          return { marginBottom: '12px', background: 'white', border: '2px solid #6B8E6F', color: '#6B8E6F' };
         }
-        return { marginBottom: '12px' }; // Sage green (default auth-button style)
+        return { marginBottom: '12px' }; // Filled sage green (default auth-button style)
       };
 
       return (
