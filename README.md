@@ -94,7 +94,7 @@ Each developer also has a "Company Information" project (hidden from UI, used fo
 - **Production URL**: Check latest Vercel deployment
 - **GitHub Repo**: https://github.com/playingmontes/monty-lookup-chat
 - **Supabase Project ID**: jfimvpvwpyrttiitvdbr
-- **n8n Webhook**: https://thomasmccone.app.n8n.cloud/webhook-test/montychat
+- **n8n Webhook**: https://thomasmccone.app.n8n.cloud/webhook/montychat
 
 ## 📁 File Structure
 

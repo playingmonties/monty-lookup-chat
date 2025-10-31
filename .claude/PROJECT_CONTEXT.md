@@ -94,7 +94,7 @@ items (id, project_id, name, type, created_at)
 - `selectedCategory` - Current category (string)
 
 ### Webhook Integration
-- **Endpoint**: https://thomasmccone.app.n8n.cloud/webhook-test/montychat
+- **Endpoint**: https://thomasmccone.app.n8n.cloud/webhook/montychat
 - **Method**: POST
 - **Payload**:
   ```json
