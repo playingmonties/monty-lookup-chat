@@ -320,6 +320,33 @@
       padding: 20px;
       font-style: italic;
     }
+
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4CAF50;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
   </style>
 </head>
 <body>
@@ -387,7 +414,7 @@
       );
     }
 
-    function DeveloperSelection({ onDeveloperSelected, userPhone }) {
+    function DeveloperSelection({ onDeveloperSelected, userPhone, loadingAction, setLoadingAction, showToast }) {
       const [developers, setDevelopers] = useState([]);
       const [loading, setLoading] = useState(true);
 
@@ -412,6 +439,7 @@
       }, []);
 
       const handleAllAvailability = async () => {
+        setLoadingAction('all_availability');
         try {
           await fetch('https://thomasmccone.app.n8n.cloud/webhook/montychat', {
             method: 'POST',
@@ -427,8 +455,12 @@
               timestamp: new Date().toISOString()
             })
           });
+          showToast('✓ Request sent!');
         } catch (error) {
           console.error('Error sending bulk availability request:', error);
+          showToast('✗ Request failed');
+        } finally {
+          setLoadingAction(null);
         }
       };
 
@@ -445,8 +477,9 @@
                 className="auth-button"
                 style={{ marginBottom: '24px', background: '#E07A5F', color: 'white', fontWeight: '600' }}
                 onClick={handleAllAvailability}
+                disabled={loadingAction === 'all_availability'}
               >
-                All Availability
+                {loadingAction === 'all_availability' ? 'Sending...' : 'All Availability'}
               </button>
               {developers.map((dev) => (
                 <button
@@ -464,7 +497,7 @@
       );
     }
 
-    function ProjectSelection({ developer, onProjectSelected, onCompanyProfile, onBack }) {
+    function ProjectSelection({ developer, onProjectSelected, onCompanyProfile, onBack, loadingAction }) {
       const [projects, setProjects] = useState([]);
       const [loading, setLoading] = useState(true);
 
@@ -513,8 +546,9 @@
                 className="auth-button"
                 style={{ marginTop: '24px', marginBottom: '12px', background: '#E07A5F', color: 'white' }}
                 onClick={onCompanyProfile}
+                disabled={loadingAction === 'company_profile'}
               >
-                Company Profile
+                {loadingAction === 'company_profile' ? 'Sending...' : 'Company Profile'}
               </button>
               <button
                 className="auth-button"
@@ -529,7 +563,7 @@
       );
     }
 
-    function ItemCategorySelection({ project, developer, onCategorySelected, onDirectAction, onBack }) {
+    function ItemCategorySelection({ project, developer, onCategorySelected, onDirectAction, onBack, loadingAction }) {
       // Always show these 5 categories for every project
       const categories = ['brochure', 'availability', 'financial_fact_sheet', 'floor_plan', 'sales_offer'];
 
@@ -568,16 +602,21 @@
           <p className="auth-subtitle">Select an option</p>
 
           <div style={{ width: '100%', maxWidth: '400px' }}>
-            {categories.map((category) => (
-              <button
-                key={category}
-                className="auth-button"
-                style={getButtonStyle(category)}
-                onClick={() => handleCategoryClick(category)}
-              >
-                {getCategoryLabel(category)}
-              </button>
-            ))}
+            {categories.map((category) => {
+              const isDirectAction = category === 'brochure' || category === 'availability' || category === 'financial_fact_sheet';
+              const isLoading = loadingAction === category;
+              return (
+                <button
+                  key={category}
+                  className="auth-button"
+                  style={getButtonStyle(category)}
+                  onClick={() => handleCategoryClick(category)}
+                  disabled={isDirectAction && isLoading}
+                >
+                  {isDirectAction && isLoading ? 'Sending...' : getCategoryLabel(category)}
+                </button>
+              );
+            })}
             <button
               className="auth-button"
               style={{ marginTop: '24px', background: '#999' }}
@@ -601,6 +640,8 @@
       const [selectedIndex, setSelectedIndex] = useState(-1);
       const [loading, setLoading] = useState(false);
       const [messages, setMessages] = useState([]);
+      const [loadingAction, setLoadingAction] = useState(null);
+      const [toastMessage, setToastMessage] = useState(null);
       const inputRef = useRef(null);
 
       useEffect(() => {
@@ -662,6 +703,13 @@
         return () => clearTimeout(debounceTimer);
       }, [searchQuery, selectedProject, selectedCategory]);
 
+      const showToast = (message) => {
+        setToastMessage(message);
+        setTimeout(() => {
+          setToastMessage(null);
+        }, 3000);
+      };
+
       const handleAuthenticated = (phone) => {
         setIsAuthenticated(true);
         setUserPhone(phone);
@@ -697,6 +745,7 @@
           text: itemName
         }]);
 
+        setLoadingAction(category);
         try {
           await fetch('https://thomasmccone.app.n8n.cloud/webhook/montychat', {
             method: 'POST',
@@ -712,8 +761,12 @@
               timestamp: new Date().toISOString()
             })
           });
+          showToast('✓ Request sent!');
         } catch (error) {
           console.error('Error sending to webhook:', error);
+          showToast('✗ Request failed');
+        } finally {
+          setLoadingAction(null);
         }
       };
 
@@ -721,6 +774,7 @@
         // Send company profile request to webhook
         const itemName = `${selectedDeveloper.name} - Company Profile`;
 
+        setLoadingAction('company_profile');
         try {
           await fetch('https://thomasmccone.app.n8n.cloud/webhook/montychat', {
             method: 'POST',
@@ -736,8 +790,12 @@
               timestamp: new Date().toISOString()
             })
           });
+          showToast('✓ Request sent!');
         } catch (error) {
           console.error('Error sending to webhook:', error);
+          showToast('✗ Request failed');
+        } finally {
+          setLoadingAction(null);
         }
       };
 
@@ -835,7 +893,14 @@
             <div className="chat-header">
               ABRA
             </div>
-            <DeveloperSelection onDeveloperSelected={handleDeveloperSelected} userPhone={userPhone} />
+            <DeveloperSelection
+              onDeveloperSelected={handleDeveloperSelected}
+              userPhone={userPhone}
+              loadingAction={loadingAction}
+              setLoadingAction={setLoadingAction}
+              showToast={showToast}
+            />
+            {toastMessage && <div className="toast">{toastMessage}</div>}
           </div>
         );
       }
@@ -851,7 +916,9 @@
               onProjectSelected={handleProjectSelected}
               onCompanyProfile={handleCompanyProfile}
               onBack={handleBackToDevelopers}
+              loadingAction={loadingAction}
             />
+            {toastMessage && <div className="toast">{toastMessage}</div>}
           </div>
         );
       }
@@ -868,7 +935,9 @@
               onCategorySelected={handleCategorySelected}
               onDirectAction={handleDirectAction}
               onBack={handleBackToProjects}
+              loadingAction={loadingAction}
             />
+            {toastMessage && <div className="toast">{toastMessage}</div>}
           </div>
         );
       }
