@@ -387,7 +387,7 @@
       );
     }
 
-    function DeveloperSelection({ onDeveloperSelected }) {
+    function DeveloperSelection({ onDeveloperSelected, userPhone }) {
       const [developers, setDevelopers] = useState([]);
       const [loading, setLoading] = useState(true);
 
@@ -411,6 +411,27 @@
         fetchDevelopers();
       }, []);
 
+      const handleAllAvailability = async () => {
+        try {
+          await fetch('https://thomasmccone.app.n8n.cloud/webhook/montychat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              item: 'All Availability',
+              item_type: 'bulk_availability',
+              developer: null,
+              project: null,
+              phone_number: userPhone,
+              timestamp: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.error('Error sending bulk availability request:', error);
+        }
+      };
+
       return (
         <div className="auth-container">
           <h2 className="auth-title">Select Developer</h2>
@@ -420,6 +441,13 @@
             <div className="loading">Loading developers...</div>
           ) : (
             <div style={{ width: '100%', maxWidth: '400px' }}>
+              <button
+                className="auth-button"
+                style={{ marginBottom: '24px', background: 'white', border: '2px solid #D4A574', color: '#D4A574', fontWeight: '600' }}
+                onClick={handleAllAvailability}
+              >
+                📊 All Availability
+              </button>
               {developers.map((dev) => (
                 <button
                   key={dev.id}
@@ -807,7 +835,7 @@
             <div className="chat-header">
               ABRA
             </div>
-            <DeveloperSelection onDeveloperSelected={handleDeveloperSelected} />
+            <DeveloperSelection onDeveloperSelected={handleDeveloperSelected} userPhone={userPhone} />
           </div>
         );
       }
