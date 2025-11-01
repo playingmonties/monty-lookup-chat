@@ -41,22 +41,33 @@ This application provides a hierarchical navigation system for browsing real est
 ```
 Phone Authentication
     ↓
-Developer Selection (5 buttons)
+Developer Selection (5 buttons + All Availability button)
+    ├── All Availability (SALMON) → Bulk webhook request
+    └── [Developer buttons] (SAGE GREEN) → Navigate to projects
     ↓
 Project Selection (buttons for each project + Company Profile button)
+    ├── Company Profile (SALMON) → Direct webhook
+    └── [Project buttons] (SAGE GREEN) → Navigate to categories
     ↓
 Category Selection (5 buttons)
-    ├── Brochure (GREEN) → Direct webhook
-    ├── Availability (GREEN) → Direct webhook
-    ├── Financial Fact Sheet (GREEN) → Direct webhook
-    ├── Floor Plans (PURPLE) → Search interface
-    └── Sales Offers (PURPLE) → Search interface
+    ├── Brochure (SALMON) → Direct webhook
+    ├── Availability (SALMON) → Direct webhook
+    ├── Financial Fact Sheet (SALMON) → Direct webhook
+    ├── Floor Plans (SAGE GREEN) → Search interface
+    └── Sales Offers (SAGE GREEN) → Search interface
 ```
 
 ### Button Color Coding
-- **Green** = Direct actions (stays on page, sends to webhook immediately)
-- **Purple** = Navigate deeper (goes to another level)
-- **Gray** = Back navigation
+- **Salmon (#E07A5F)** = Direct actions (stays on page, sends to webhook immediately)
+- **Sage Green (#8B9A8D)** = Navigate deeper (goes to another level)
+- **Gray (#999)** = Back navigation
+
+### Loading States & Toast Notifications
+All salmon action buttons provide visual feedback:
+- Button shows "Sending..." during webhook call
+- Toast notification appears at bottom after success: "✓ Request sent!"
+- Toast appears in salmon color and auto-dismisses after 3 seconds
+- Smooth slide-up animation
 
 ## 📊 Current Data
 
@@ -65,7 +76,7 @@ Category Selection (5 buttons)
    - Peace Lagoons 2
 
 2. **SCC Vertex**
-   - Willow Residences
+   - The Willows Residences
 
 3. **Premier Choice**
    - Gateway
@@ -158,13 +169,22 @@ Every project automatically shows 5 category buttons:
 
 No database entries needed for buttons to appear.
 
-### Direct Actions (Green Buttons)
+### Direct Actions (Salmon Buttons)
 Clicking Brochure, Availability, or Financial Fact Sheet:
 - Sends webhook with format: `{project_name} - {category}`
 - Example: "Gateway - Brochure"
 - No items need to exist in database
+- Button shows "Sending..." during request
+- Success toast appears: "✓ Request sent!"
 
-### Search Categories (Purple Buttons)
+### Bulk Actions
+Clicking "All Availability" on home page:
+- Sends single webhook with `item_type: 'bulk_availability'`
+- n8n compiles availability for all projects
+- Button shows "Sending..." during request
+- Success toast appears: "✓ Request sent!"
+
+### Search Categories (Sage Green Buttons)
 Clicking Floor Plans or Sales Offers:
 - Navigates to search interface
 - Users type to search items in database
@@ -187,8 +207,10 @@ Clicking Floor Plans or Sales Offers:
 ### Testing
 1. Open app in browser
 2. Enter phone number
-3. Navigate: Developer → Project → Category
-4. Test both green buttons (direct) and purple buttons (search)
+3. Test "All Availability" bulk button (watch for "Sending..." and toast)
+4. Navigate: Developer → Project → Category
+5. Test salmon buttons (direct actions with loading/toast feedback)
+6. Test sage green buttons (navigation to search)
 
 ## 🔐 Authentication Flow
 
@@ -202,12 +224,37 @@ Clicking Floor Plans or Sales Offers:
 
 When user selects an item, sends POST to n8n webhook:
 
+**Regular Item Selection:**
 ```json
 {
   "item": "Peace Lagoons 2 - Floor Plan - B1001",
   "item_type": "floor_plan",
   "developer": "Peace Homes",
   "project": "Peace Lagoons 2",
+  "phone_number": "+971501234567",
+  "timestamp": "2025-01-31T12:34:56.789Z"
+}
+```
+
+**Bulk Availability Request:**
+```json
+{
+  "item": "All Availability",
+  "item_type": "bulk_availability",
+  "developer": null,
+  "project": null,
+  "phone_number": "+971501234567",
+  "timestamp": "2025-01-31T12:34:56.789Z"
+}
+```
+
+**Company Profile Request:**
+```json
+{
+  "item": "SCC Vertex - Company Profile",
+  "item_type": "company_profile",
+  "developer": "SCC Vertex",
+  "project": null,
   "phone_number": "+971501234567",
   "timestamp": "2025-01-31T12:34:56.789Z"
 }
@@ -230,14 +277,18 @@ Potential improvements:
 - Phone auth without OTP (internal tool, trusted users)
 - Category buttons always visible (better UX than conditional rendering)
 - Search only for large collections (floor plans, sales offers)
-- Green/purple color coding for action clarity
+- Salmon/sage green color coding for action clarity
+- Loading states and toast notifications for all actions
+- "All Availability" bulk request button on home page
 - Company Profile at developer level (not project level)
 
 ### Why These Choices?
 - **Single file**: Easy deployment, no build complexity
 - **Simplified auth**: Internal tool, users are trusted
 - **Always show categories**: Prevents user confusion about what's available
-- **Color coding**: Visual cue for what happens on click
+- **Salmon/sage color coding**: Contrasting colors - salmon for actions (stay), sage green for navigation (go deeper)
+- **Loading feedback**: Users need to know when webhook requests are sent successfully
+- **Bulk availability**: Single-click option for common use case (all project availability)
 - **Supabase**: Managed PostgreSQL, good free tier, RLS support
 
 ## 🆘 Troubleshooting
